@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "HunterRoam.h"
 
 // Serial communication protocol:
 // Incoming packets are 8 bytes, response is 7 bytes
@@ -32,10 +33,9 @@
 
 void setup()
 {
-  // put your setup code here, to run once:
+  // Setup code
   Serial.begin(9600);
   Serial.setTimeout(100);
-  Serial.println("iSprinklr Arduino");
 }
 
 // Fletcher-16 checksum function
@@ -54,30 +54,11 @@ uint16_t fletcher16(const uint8_t *data, int x, int y)
   return (sum2 << 8) | sum1;
 }
 
-/* // Take 4 ASCII characters and turn into a 16 bit integer
-uint16_t getHex(const char *data, int x) {
-  uint16_t hex = 0;
-  char hex_str[5];
-
-  for (int i = x; i < x + 4; ++i) {
-    hex_str[i-x] = data[i];
-  }
-  hex_str[4] = "\0";
-
-  sscanf(hex_str, "%x", &hex);
-
-  return hex;
-} */
-
 // Compare the checksum in the packet to the calculated checksum
 bool checkData(const uint8_t *data)
 {
   uint16_t rec_chk = (data[5] << 8) | data[6];
   uint16_t checksum = fletcher16(data, 1, 5);
-//  Serial.print("Computed checksum: ");
-//  Serial.println(checksum, HEX);
-//  Serial.print("Received checksum: ");
-//  Serial.println(rec_chk, HEX);
   if (checksum != rec_chk)
   {
     return false;
@@ -96,31 +77,32 @@ void sendResponse(uint8_t r1, uint8_t r2, uint8_t CONN_ID, uint16_t checkInt)
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
+  HunterRoam smartPort(LED_BUILTIN);
   uint8_t data[ARRAY_MAX];
   bool new_data = false;
   static uint8_t CONN_ID = 0;
   static bool connected = false;
 
+  // Check to see if there is new data
   if (Serial.available() > 0)
   {
+    // Read ARRAY_MAX bytes or until timeout
     size_t len = Serial.readBytes(data, ARRAY_MAX);
     if (len < ARRAY_MAX)
     {
+      // Data underun, clear buffer
       memset(data, '\0', ARRAY_MAX - 1);
       return;
     }
-    // data[ARRAY_MAX-1] = "\0";
     new_data = true;
   }
 
   if (new_data == true)
   {
     new_data = false;
+    // Make sure the BEGIN and END bytes are correct
     if (data[0] != BEGIN || data[ARRAY_MAX - 1] != END)
     {
-//      Serial.println(data[0] == 255);
-//      Serial.println("Bad packet");
       return;
     }
 
@@ -131,12 +113,10 @@ void loop()
       {
         CONN_ID = data[1];
         connected = false;
-//        Serial.println("SYNACK");
-        sendResponse(CONN_ID, SYN, ACK, checksum);
+        sendResponse(SYN, ACK, CONN_ID, checksum);
       }
       if (data[2] == ACK && data[1] == CONN_ID && connected == false)
       {
-        // Serial.println("Connected");
         connected = true;
         return;
       }
@@ -146,24 +126,28 @@ void loop()
         {
           if (data[3] < 1 || data[3] > 8)
           {
-//            Serial.println("Error: bad command");
             sendResponse(ERR, BAD_SPRINKLER, CONN_ID, checksum);
             return;
           }
           if (data[4] < 1 || data[4] > 60)
           {
-//            Serial.println("Error: bad duration");
             sendResponse(ERR, BAD_DURATION, CONN_ID, checksum);
             return;
           }
+          smartPort.startZone(data[3], data[4]);
         }
         else if (data[2] == STOP_SPRINKLER)
         {
+          if (data[3] < 1 || data[3] > 8)
+          {
+            sendResponse(ERR, BAD_SPRINKLER, CONN_ID, checksum);
+            return;
+          }
+          smartPort.stopZone(data[3]);
         }
         else
         {
           // Bad command, send err
-//          Serial.println("Error: general");
           sendResponse(ERR, BAD_CMD, CONN_ID, checksum);
           return;
         }
