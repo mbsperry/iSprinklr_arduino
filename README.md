@@ -1,8 +1,0 @@
-Arduino portion of the iSprinklr project
-
-HunterRoam library used from https://github.com/ecodina/hunter-wifi (see HunterRoam.cpp for attributions).
-Adapted to use serial communication instead of WiFi based API since I don't have a wifi capable arduino.
-
-Other components of the project:
-API - runs on a raspberry pi or similar connected to arduino via seria (USB in this case.): https://github.com/mbsperry/isprinklr_api
-Web Front End: Built out of React. Can run on the same raspberry pi. https://github.com/mbsperry/iSprinklr_react

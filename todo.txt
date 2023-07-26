@@ -1,5 +1,0 @@
-Todo
-
-[ ] Cleanup debug code
-[ ] Implement handshake to make sure arduino is awake and ready
-[ ] Implement call and response to check that arduino received command correctly
